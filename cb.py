@@ -52,8 +52,6 @@ class sensorhandler(object):
                 verify=False
             )
 
-            sys.stdout.write(ret.text)
-
             if ret.json()["status"] == "active":
                 break
 

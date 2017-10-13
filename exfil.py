@@ -1,5 +1,8 @@
+#!/usr/bin/python
+
 import os
 import sys
+import time
 import requests
 from cb import sensorhandler 
 
@@ -15,7 +18,8 @@ class exfildir(object):
         sensordata = self.sensorhandler.get_sensordata(self.computername)
         self.session = self.sensorhandler.find_session(sensordata)
 
-    # Local saves
+
+    # Local saves archive
     def save_archive_content(self, session):
         sys.stdout.write("\nGetting session archive data!")
         urlpath = "/api/v1/cblr/session/%d/archive" % session["id"]
@@ -35,7 +39,16 @@ class exfildir(object):
         sys.stdout.write("Path %s is not a valid path. Try using quotes.\n" % path)
         exit()
 
-    def exfilfile(self, session_id, commanddata):
+    # Creats 
+    def create_multiple_folders(self, path):
+        if not os.path.isdir(path):
+            print "Creating path %s" % path
+            os.makedirs(path) 
+
+    def exfilfile(self, session_id, commanddata, path):
+        # To verify if the folder exists
+        self.create_multiple_folders(path)
+
         urlpath = "/api/v1/cblr/session/%d/file/%d/content" % (session_id, commanddata["file_id"])
 
         raw_filedata = requests.get(
@@ -45,12 +58,13 @@ class exfildir(object):
             verify=False
         )
 
-        if "\\" in self.path:
-            filename = self.path.split("\\")[-1]
-        elif "/" in self.path:
-            filename = self.path.split("/")[-1]
+        # Windows vs Linux?
+        if "\\" in commanddata["object"]:
+            filename = commanddata["object"].split("\\")[-1]
+        elif "/" in commanddata["object"]:
+            filename = commanddata["object"].split("/")[-1]
 
-        with open(filename, 'wb') as handle:
+        with open("%s%s" % (path, filename), 'wb') as handle:
             for block in raw_filedata.iter_content(1024):
                 handle.write(block)
 
@@ -132,16 +146,33 @@ class exfildir(object):
                 if item["filename"] in whitelist:
                     continue
 
-                # Something like this has to be done for files as well GAHH
+                # Handles directories before files are downloaded.
                 if item["attributes"][0] == "DIRECTORY":
                     directories.append("%s%s\\" % (previousfolder, item["filename"]))
                     foldername = ("%s%s\\" % ("/".join(previousfolder.split("\\")[cnt:]), item["filename"]))[:-1]
                     self.create_folder("data/%s/%s" % (self.computername, foldername))
+                else:
+                    # Handles individual files
+                    foldername = ("%s" % ("/".join(previousfolder.split("\\")[cnt:])))#, item["filename"]))[:-1]
+                    new_commanddata = self.run_new_command(
+                        self.session, 
+                        command="get file", 
+                        curobject="%s%s" % (previousfolder, item["filename"])
+                    )
+
+                    self.exfilfile(
+                        self.session["id"], 
+                        new_commanddata, 
+                        "data/%s/%s" % (self.computername, foldername)
+                    )
 
             try:
                 directories.remove(previousfolder)
             except ValueError:
                 pass
+
+        localfilepath = "data/%s/%s" % (self.computername, rootpath.split("\\")[-2])
+        print "\n[!] FINISHED! Folder saved to %s/%s" % (os.getcwd(), localfilepath)
 
     # Requires an active session
     def grab_file_from_session(self, session):
@@ -151,26 +182,28 @@ class exfildir(object):
         # First attempts directory listing to check filetype
         commanddata = self.run_new_command(session, curobject=self.path)
 
-        # LOOL
-        if commanddata:
-            if len(commanddata["files"]) < 2:
-                if commanddata["files"][0]["attributes"][0] == "ARCHIVE":
-                    new_commanddata = self.run_new_command(\
-                        session, command="get file", curobject=self.path)
-                    self.exfilfile(curid, new_commanddata)
-                elif commanddata["files"][0]["attributes"][0] == "DIRECTORY":
-                    print "Appending \\ to path as its identified as a folder."
-                    self.path += "\\"
-
-            self.recurse_folders(commanddata)
-
-        else:
-            sys.stdout.write("Something wrong with commanddata return value :)\n")
+        if not commanddata:
+            sys.stdout.write("Something wrong with initial commanddata return value :)\n")
             exit()
+
+        if len(commanddata["files"]) < 2:
+            # FIX - might not always be archive? idk what this means in CB setting
+            if commanddata["files"][0]["attributes"][0] == "ARCHIVE":
+                new_commanddata = self.run_new_command(\
+                    session, command="get file", curobject=self.path)
+                self.exfilfile(curid, new_commanddata, "data/%s/singlefiles/" % self.computername)
+                localfilepath = "%s/singlefiles/%s" % (self.computername, new_commanddata["object"].split("\\")[-1]) 
+                print "File saved to %s/data/%s" % (os.getcwd(), localfilepath)
+                exit()
+            elif commanddata["files"][0]["attributes"][0] == "DIRECTORY":
+                print "Appending \\ to path as its identified as a folder."
+                self.path += "\\"
+
+        self.recurse_folders(commanddata)
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
-        sys.stdout.write("Usage: python getfile.py <filepath> <computername>\n")
+        sys.stdout.write("Usage: ./exfil <filepath> <computername>\n")
         exit()
 
     path = sys.argv[1]
