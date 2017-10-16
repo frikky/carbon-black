@@ -5,6 +5,7 @@ import sys
 import time
 import requests
 from cb import sensorhandler 
+from exfil import exfildir
 
 class dumpmemory(object):
     def __init__(self, computername): 
@@ -75,19 +76,66 @@ class dumpmemory(object):
             
         return True
 
+    def create_multiple_folders(self, path):
+        if not os.path.isdir(path):
+            print "Creating path %s" % path
+            os.makedirs(path) 
+
     # Gets the actual memory
     def get_memory(self, username):
-        output_location = "C:\Users\\%s\AppData\Local\\temp\\" % username
+        output_location = "C:\\Users\\%s\\AppData\\Local\\temp\\dump" % username
+        compress_check=False
 
-        #Runs the memdump process
+        #Runs the memdump process - This takes a while if compress_check is True
+        # 17~ min on 17gb~ dump
+        # Fix - uncomment this
+        """
         fileret = self.start_new_process(
             self.session, 
             command="memdump", 
             curobject=output_location,
-            compress="true"
+            compress=compress_check
         )
 
+        if fileret.startswith("Command not supported"):
+            print "Sensor version is < 5.1 and cannot be executed properly."
+            exit()
+
         print fileret
+        """
+
+        if compress_check:
+            # Deletes the dump file 
+            self.start_new_process(
+                self.session, 
+                command="delete file", 
+                curobject=output_location
+            )
+
+            # Overrides to download 
+
+        output_location = output_location+".zip"
+        exfil = exfildir("", self.computername)
+
+        print "or Here?"
+        new_commanddata = self.start_new_process(\
+            self.session, 
+            command="get file", 
+            curobject=output_location
+        )
+
+        exfil.exfilfile(
+            self.session["id"], 
+            new_commanddata, 
+            "data/%s/dumpfile/" % self.computername
+        )
+
+        self.start_new_process(
+            self.session, 
+            command="delete file", 
+            curobject=output_location
+        )
+
         
         """
         Response Object
@@ -156,6 +204,7 @@ class dumpmemory(object):
 
         # Verifies if the command is finished or not.
         commanddata = ""
+        refreshcnt = 0
         while(1):
             urlpath = "/api/v1/cblr/session/%s/command/%d" % (curid, ret.json()["id"])
             commandret = requests.get(
@@ -172,9 +221,20 @@ class dumpmemory(object):
                 commanddata = commandret.json()
                 break    
 
-            sys.stdout.write("Command not finished, waiting 5 seconds.\n")
-            sys.stdout.write("If this continues for more than 30 seconds there might be a session issue.\n")
-            time.sleep(5)
+            # Hardcoded for memdump
+            # Should maybe give % finished?
+            if command == "memdump" and compress: 
+                sys.stdout.write("Memdump takes a long time when compressing. Checking if complete ever 60 seconds.\n")
+                time.sleep(60)
+            else:
+                sys.stdout.write("Command not finished, refreshing every 5 seconds.\n")
+                time.sleep(5)
+
+            if refreshcnt > 10:
+                print "If you're running \'getfile\' on a large item it will take a long ass time. Raw:%s" % commandret.json()
+                refreshcnt = 0
+
+            refreshcnt += 1
 
         return commanddata
 
@@ -187,7 +247,7 @@ if __name__ == "__main__":
     dump = dumpmemory(computername)
 
     # Hardcoded for now
-    username = "User"
+    username = "fodeg"
     diskcheck = dump.check_diskspace(username)
     if not diskcheck:
         exit()

@@ -8,8 +8,9 @@ from cb import sensorhandler
 
 class exfildir(object):
     def __init__(self, path, computername): 
-        if "\\" not in path and not "/" in path:
-            self.return_path_error(path)
+        # Fix - might be error here
+        #if "\\" not in path and not "/" in path:
+        #    self.return_path_error(path)
 
         self.path = r'%s' % path
         self.computername = computername
@@ -65,7 +66,7 @@ class exfildir(object):
             filename = commanddata["object"].split("/")[-1]
 
         with open("%s%s" % (path, filename), 'wb') as handle:
-            for block in raw_filedata.iter_content(1024):
+            for block in raw_filedata.iter_content(4096):
                 handle.write(block)
 
     def run_new_command(self, session, command="directory list", curobject=""):
@@ -190,8 +191,16 @@ class exfildir(object):
             # FIX - might not always be archive? idk what this means in CB setting
             if commanddata["files"][0]["attributes"][0] == "ARCHIVE":
                 new_commanddata = self.run_new_command(\
-                    session, command="get file", curobject=self.path)
-                self.exfilfile(curid, new_commanddata, "data/%s/singlefiles/" % self.computername)
+                    session, 
+                    command="get file", 
+                    curobject=self.path
+                )
+                self.exfilfile(
+                    curid, 
+                    new_commanddata, 
+                    "data/%s/singlefiles/" % self.computername
+                )
+
                 localfilepath = "%s/singlefiles/%s" % (self.computername, new_commanddata["object"].split("\\")[-1]) 
                 print "File saved to %s/data/%s" % (os.getcwd(), localfilepath)
                 exit()
