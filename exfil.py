@@ -19,7 +19,6 @@ class exfildir(object):
         sensordata = self.sensorhandler.get_sensordata(self.computername)
         self.session = self.sensorhandler.find_session(sensordata)
 
-
     # Local saves archive
     def save_archive_content(self, session):
         sys.stdout.write("\nGetting session archive data!")
@@ -99,6 +98,7 @@ class exfildir(object):
             )
 
             if commandret.json()["status"] == "error":
+                print commandret.json()
                 print "The filepath most likely doesn't exist anymore."
                 exit()
 
@@ -139,7 +139,7 @@ class exfildir(object):
 
         # Create folder first?
         while(len(directories) > 0):
-            commanddata = self.run_new_command(self.session, curobject=directories[0])
+            commanddata = self.sensorhandler.start_new_process(self.session, command="directory list", curobject=directories[0])
             previousfolder = directories[0]
             rootname = previousfolder.split("\\")[-2]
                 
@@ -155,7 +155,7 @@ class exfildir(object):
                 else:
                     # Handles individual files
                     foldername = ("%s" % ("/".join(previousfolder.split("\\")[cnt:])))#, item["filename"]))[:-1]
-                    new_commanddata = self.run_new_command(
+                    new_commanddata = self.sensorhandler.start_new_process(
                         self.session, 
                         command="get file", 
                         curobject="%s%s" % (previousfolder, item["filename"])
@@ -181,7 +181,7 @@ class exfildir(object):
         sys.stdout.write("\nAttempting to grabfile from \n")
 
         # First attempts directory listing to check filetype
-        commanddata = self.run_new_command(session, curobject=self.path)
+        commanddata = self.sensorhandler.start_new_process(session, command="directory list", curobject=self.path)
 
         if not commanddata:
             sys.stdout.write("Something wrong with initial commanddata return value :)\n")
@@ -189,8 +189,10 @@ class exfildir(object):
 
         if len(commanddata["files"]) < 2:
             # FIX - might not always be archive? idk what this means in CB setting
-            if commanddata["files"][0]["attributes"][0] == "ARCHIVE":
-                new_commanddata = self.run_new_command(\
+            print commanddata
+            arguments = commanddata["files"][0]["attributes"]
+            if "ARCHIVE" in arguments:
+                new_commanddata = self.sensorhandler.start_new_process(\
                     session, 
                     command="get file", 
                     curobject=self.path
@@ -220,3 +222,5 @@ if __name__ == "__main__":
 
     grabber = exfildir(path, computername)
     grabber.grab_file_from_session(grabber.session)
+
+

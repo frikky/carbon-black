@@ -2,6 +2,7 @@ import time
 import sys
 import requests
 import config as cfg
+from time import gmtime, strftime 
 
 requests.packages.urllib3.disable_warnings(\
 requests.packages.urllib3.exceptions.InsecureRequestWarning)
@@ -22,6 +23,9 @@ class sensorhandler(object):
             "X-Auth-Token": cfg.api_key,
             "Content-Type": "application/json"
         }
+
+    def get_time(self):
+        return strftime("%H:%M:%S", gmtime())
 
     # Can be used to find old machines etc too
     def get_sensordata(self, computername):
@@ -46,11 +50,17 @@ class sensorhandler(object):
         # Reconnects every 5 second untill the pending session becomes active
         while(1):
             time.sleep(5)
-            ret = requests.get(
-                "%s%s" % (self.url, urlpath), 
-                headers=self.header, 
-                verify=False
-            )
+
+            # Don't you die on me!
+            try:
+                ret = requests.get(
+                    "%s%s" % (self.url, urlpath), 
+                    headers=self.header, 
+                    verify=False
+                )
+            except requests.exceptions.ConnectionError:
+                print "CB unavailable for a moment. Retrying"
+                continue
 
             if ret.json()["status"] == "active":
                 break
@@ -108,6 +118,81 @@ class sensorhandler(object):
         self.wait_for_session(cur_session)
         return cur_session
             
-        #self.grab_file_from_session(cur_session)
+    # Runs commands on the Carbon black endpoint
+    def start_new_process(self, session, command="create process", \
+        curobject="", wait="", output_file="", compress=True):
 
+        curid = session["id"]
+        urlpath = "/api/v1/cblr/session/%s/command" % curid
+
+        data = {"session_id": curid, "name": command, "object": curobject}
+        print "%s: Running command \'%s\' with argument %s" % \
+            (self.get_time(), command, curobject)
+
+        # Appends stuff
+        if output_file:
+            data["output_file"] = output_file
+        if wait:
+            data["wait"] = wait
+        if compress:
+            data["compress"] = compress
+
+        # Attaches to a running session and runs the command above
+        ret = requests.post(
+            "%s%s" % (self.url, urlpath), 
+            json=data, 
+            headers=self.header, 
+            verify=False
+        )
+
+        # Should never happen, but its too be sure
+        if not ret.status_code == 200:
+            sys.stdout.write("%s: Couldn't connect to the endpoint. Raw error:\n%s" % (self.get_time(), ret.text))
+            exit()
+
+        print ret.json()
+
+        # Verifies if the command is finished or not.
+        commanddata = ""
+        refreshcnt = 0
+        while(1):
+            # Creates a request to verify whether the command is finished or not
+            urlpath = "/api/v1/cblr/session/%s/command/%d" % (curid, ret.json()["id"])
+            commandret = requests.get(
+                "%s%s" % (self.url, urlpath), 
+                headers=self.header, 
+                verify=False
+            )
+                
+            # Exits if an error occurs. This means the command was injected badly.
+            if commandret.json()["status"] == "error":
+                if command == "directory list":
+                    return False
+
+                # Errors in delete file..
+                print "%s: An error occurred while issuing the command. Raw:\n%s" % (self.get_time(), commandret.json())
+                exit()
+
+            # Returns the commanddata if the command is finished
+            if commandret.json()["status"] == "complete":
+                commanddata = commandret.json()
+                break    
+
+            # Hardcoded for memdump
+            # Should maybe give % finished?
+            if command == "memdump" and compress: 
+                if refreshcnt is 0:
+                    sys.stdout.write("%s: Memdump takes a long time when compressing. Checking if complete every 60 seconds. Raw:\n%s\n" % (self.get_time(), commandret.json()))
+                time.sleep(60)
+            else:
+                if refreshcnt is 0:
+                    sys.stdout.write("%s: Checking whether the command is finished every 10 seconds. Raw: \n%s\n" % (self.get_time(), commandret.json()))
+                time.sleep(10)
+
+            refreshcnt += 1
+
+            if refreshcnt > 10:
+                refreshcnt = 0
+
+        return commanddata
 
