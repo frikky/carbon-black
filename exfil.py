@@ -49,6 +49,9 @@ class exfildir(object):
         # To verify if the folder exists
         self.create_multiple_folders(path)
 
+        if isinstance(commanddata, bool):
+            return False
+
         urlpath = "/api/v1/cblr/session/%d/file/%d/content" % (session_id, commanddata["file_id"])
 
         raw_filedata = requests.get(
@@ -142,7 +145,11 @@ class exfildir(object):
             commanddata = self.sensorhandler.start_new_process(self.session, command="directory list", curobject=directories[0])
             previousfolder = directories[0]
             rootname = previousfolder.split("\\")[-2]
-                
+
+            if isinstance(commanddata, bool):
+                time.sleep(2)
+                continue
+
             for item in commanddata["files"]:
                 if item["filename"] in whitelist:
                     continue
@@ -203,9 +210,9 @@ class exfildir(object):
                     "data/%s/singlefiles/" % self.computername
                 )
 
-                localfilepath = "%s/singlefiles/%s" % (self.computername, new_commanddata["object"].split("\\")[-1]) 
-                print "File saved to %s/data/%s" % (os.getcwd(), localfilepath)
-                exit()
+                #localfilepath = "%s/singlefiles/%s" % (self.computername, new_commanddata["object"].split("\\")[-1]) 
+                #print "File saved to %s/data/%s" % (os.getcwd(), localfilepath)
+                return True
             elif commanddata["files"][0]["attributes"][0] == "DIRECTORY":
                 print "Appending \\ to path as its identified as a folder."
                 self.path += "\\"

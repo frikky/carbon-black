@@ -33,7 +33,7 @@ class sensorhandler(object):
         ret = requests.get("%s%s" % (self.url, urlpath), headers=self.header, verify=False)
 
         if ret.ok and ret.status_code != 204:
-            if len(ret.json()) > 1:
+            if len(ret.json()) > 2:
                 sys.stdout.write("Found %d sensors for machine name %s\n" % (len(ret.json()), computername))
                 exit()
 
@@ -145,12 +145,13 @@ class sensorhandler(object):
             verify=False
         )
 
+        #print ret.json()
+        time.sleep(5)
+
         # Should never happen, but its too be sure
         if not ret.status_code == 200:
             sys.stdout.write("%s: Couldn't connect to the endpoint. Raw error:\n%s" % (self.get_time(), ret.text))
             exit()
-
-        print ret.json()
 
         # Verifies if the command is finished or not.
         commanddata = ""
@@ -166,12 +167,8 @@ class sensorhandler(object):
                 
             # Exits if an error occurs. This means the command was injected badly.
             if commandret.json()["status"] == "error":
-                if command == "directory list":
-                    return False
-
-                # Errors in delete file..
                 print "%s: An error occurred while issuing the command. Raw:\n%s" % (self.get_time(), commandret.json())
-                exit()
+                return False
 
             # Returns the commanddata if the command is finished
             if commandret.json()["status"] == "complete":
