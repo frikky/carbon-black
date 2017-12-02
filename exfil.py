@@ -8,7 +8,7 @@ from cb import sensorhandler
 
 class exfildir(object):
     def __init__(self, path, computername): 
-        # Fix - might be error here
+        # FIX - might be error here
         #if "\\" not in path and not "/" in path:
         #    self.return_path_error(path)
 

@@ -7,6 +7,8 @@ from time import gmtime, strftime
 requests.packages.urllib3.disable_warnings(\
 requests.packages.urllib3.exceptions.InsecureRequestWarning)
 
+# FIX - Check out keepalive stuff
+
 """
 Using the following in another file will give you an active session you can play with:
 
@@ -109,7 +111,7 @@ class sensorhandler(object):
                         cur_session = item
                         break
 
-            # Creates an active session if it doesnt exist - FIX
+            # Creates an active session if it doesnt exist - might need FIX
             if not cur_session:
                 sys.stdout.write("NO ACTIVE SESSION - CREATING!\n")
                 cur_session = self.create_new_session(sensordata)
