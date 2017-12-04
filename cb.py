@@ -170,7 +170,7 @@ class sensorhandler(object):
             # Exits if an error occurs. This means the command was injected badly.
             if commandret.json()["status"] == "error":
                 print "%s: An error occurred while issuing the command. Raw:\n%s" % (self.get_time(), commandret.json())
-                return False
+                return commandret.json()
 
             # Returns the commanddata if the command is finished
             if commandret.json()["status"] == "complete":

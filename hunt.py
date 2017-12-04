@@ -7,13 +7,15 @@ sys.setdefaultencoding('utf-8')
 
 import os
 import io
+import time
 import base64
+import requests
 from cb import sensorhandler 
 
 class hunting(object):
     def __init__(self, computername): 
         self.computername = computername
-        self.directory = "C:\\ProgramData\\"
+        self.directory = "C:\\temp\\"
 
         # FIX - Remove comments
         self.sensorhandler = sensorhandler()
@@ -21,8 +23,11 @@ class hunting(object):
         self.session = self.sensorhandler.find_session(sensordata)
 
     def get_module_base64(self, filepath): 
-        return base64.b64encode(open(filepath, "r").read().decode("utf8"))
+        return base64.b64encode(unicode(open(filepath, "r").read()))
         #return base64.b64encode(open(filepath, "r").read().encode('utf8'))
+
+    def get_module(self, filepath):
+        return open(filepath, "r").read() 
 
     # Doesn't save data, but returns it raw
     def read_data(self, session_id, commanddata, path):
@@ -47,20 +52,23 @@ class hunting(object):
     # Current errors: unicode version e.g. utf8 unicode vs windows-western something  
     # Prolly hella slow compared to PS-Session or wmic
     def send_command(self, commandname, b64_command):
-        powershell_cmd = "iex -encodedcommand [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String(\"%s\"))" % b64_command
+        powershell = "C:\Windows\system32\WindowsPowerShell\\v1.0\powershell.exe"
+        powershell_cmd = "%s -EncodedCommand %s" % (powershell, b64_command[:-1])
+        #powershell = "powershell.exe \"(gwmi win32_logicaldisk | Where-Object {$_.DeviceID -eq \'C:\'}).freespace; (gwmi win32_physicalmemory | Measure Capacity -Sum).sum\""
 
         output_file = "%scbdata.txt" % self.directory
 
         powershellret = self.sensorhandler.start_new_process(self.session, \
-            command="create process", curobject=powershell, output_file=output_file)
+            command="create process", curobject=powershell_cmd, output_file=output_file)
 
+        print powershellret
         if powershellret["status"] == "complete":
             output_file = powershellret["output_file"]
 
         time.sleep(2)
 
         # Gets the file metadata
-        fileret = self.start_new_process(
+        fileret = self.sensorhandler.start_new_process(
             self.session, 
             command="get file", 
             curobject=output_file
@@ -75,7 +83,7 @@ class hunting(object):
 
         time.sleep(2)
 
-        self.start_new_process(
+        self.sensorhandler.start_new_process(
             self.session, 
             command="delete file", 
             curobject=output_file
@@ -92,6 +100,6 @@ if __name__ == "__main__":
     computername = sys.argv[1]
 
     hunt = hunting(computername)
-    filename = "hunting/Get-PrefetchListing.ps1"
-    huntdata = hunt.get_module_base64(filename)
+    filename = "hunting/Get-PrefetchListing"
+    huntdata = hunt.get_module(filename)
     hunt.send_command(filename, huntdata) 

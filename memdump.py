@@ -15,7 +15,7 @@ class dumpmemory(object):
         self.sensorhandler = sensorhandler()
         sensordata = self.sensorhandler.get_sensordata(self.computername)
         self.session = self.sensorhandler.find_session(sensordata)
-        self.directory = "C:\\ProgramData\\"
+        self.directory = "C:\\temp\\"
 
     def get_time(self):
         return strftime("%H:%M:%S", gmtime())
