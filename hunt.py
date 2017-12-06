@@ -17,7 +17,6 @@ class hunting(object):
         self.computername = computername
         self.directory = "C:\\temp\\"
 
-        # FIX - Remove comments
         self.sensorhandler = sensorhandler()
         sensordata = self.sensorhandler.get_sensordata(self.computername)
         self.session = self.sensorhandler.find_session(sensordata)
@@ -50,8 +49,23 @@ class hunting(object):
 
     # FIX - Needs a lot of work here prolly :)
     # Current errors: unicode version e.g. utf8 unicode vs windows-western something  
+
+    # Copies over the exe
+    def appcompatcache(self): 
+        pass
+        
+
+    def check_special_commands(self, commandname):
+        print commandname[0]
+        return {
+            "Get-AppCompatCache": self.appcompatcache(),
+        }.get(commandname, False)
+
     # Prolly hella slow compared to PS-Session or wmic
     def send_command(self, commandname, b64_command):
+        self.check_special_commands(commandname.split("/")[-1:])
+        exit()
+
         powershell = "C:\Windows\system32\WindowsPowerShell\\v1.0\powershell.exe"
         powershell_cmd = "%s -EncodedCommand %s" % (powershell, b64_command[:-1])
         #powershell = "powershell.exe \"(gwmi win32_logicaldisk | Where-Object {$_.DeviceID -eq \'C:\'}).freespace; (gwmi win32_physicalmemory | Measure Capacity -Sum).sum\""
@@ -101,5 +115,8 @@ if __name__ == "__main__":
 
     hunt = hunting(computername)
     filename = "hunting/Get-PrefetchListing"
+    # shimcache
+    # appcompatcache
+    # 
     huntdata = hunt.get_module(filename)
     hunt.send_command(filename, huntdata) 
