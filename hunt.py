@@ -63,9 +63,6 @@ class hunting(object):
 
     # Prolly hella slow compared to PS-Session or wmic
     def send_command(self, commandname, b64_command):
-        self.check_special_commands(commandname.split("/")[-1:])
-        exit()
-
         powershell = "C:\Windows\system32\WindowsPowerShell\\v1.0\powershell.exe"
         powershell_cmd = "%s -EncodedCommand %s" % (powershell, b64_command[:-1])
         #powershell = "powershell.exe \"(gwmi win32_logicaldisk | Where-Object {$_.DeviceID -eq \'C:\'}).freespace; (gwmi win32_physicalmemory | Measure Capacity -Sum).sum\""
