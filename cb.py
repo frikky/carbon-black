@@ -122,7 +122,7 @@ class sensorhandler(object):
             
     # Runs commands on the Carbon black endpoint
     def start_new_process(self, session, command="create process", \
-        curobject="", wait="", output_file="", compress=True):
+        curobject="", wait="", output_file="", file_id="", compress=True):
 
         curid = session["id"]
         urlpath = "/api/v1/cblr/session/%s/command" % curid
@@ -138,6 +138,9 @@ class sensorhandler(object):
             data["wait"] = wait
         if compress:
             data["compress"] = compress
+        if file_id:
+            data["file_id"] = file_id
+            data["object"] = file_id
 
         # Attaches to a running session and runs the command above
         ret = requests.post(

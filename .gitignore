@@ -3,3 +3,9 @@ config.py
 *.swo
 *.pyc
 data/
+Modules/
+kansa.ps1
+hunting/Modules/
+targetdata.zip
+targetdata/
+targets

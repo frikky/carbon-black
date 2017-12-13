@@ -117,7 +117,7 @@ class dumpmemory(object):
         exfil = exfildir("", self.computername)
 
         if compress_check:
-            output_location = output_location+".zip"
+            output_location = output_location+".tgz"
 
         new_commanddata = self.start_new_process(\
             self.session, 
