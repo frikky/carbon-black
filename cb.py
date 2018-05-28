@@ -37,7 +37,7 @@ class sensorhandler(object):
         if ret.ok and ret.status_code != 204:
             if len(ret.json()) > 2:
                 sys.stdout.write("Found %d sensors for machine name %s\n" % (len(ret.json()), computername))
-                exit()
+                #exit()
 
             return ret.json()[0]
         else:
@@ -119,7 +119,7 @@ class sensorhandler(object):
         # Waits for the session to become active before returning
         self.wait_for_session(cur_session)
         return cur_session
-            
+
     # Runs commands on the Carbon black endpoint
     def start_new_process(self, session, command="create process", \
         curobject="", wait="", output_file="", file_id="", compress=True):
@@ -197,4 +197,3 @@ class sensorhandler(object):
                 refreshcnt = 0
 
         return commanddata
-
